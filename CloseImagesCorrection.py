@@ -8,7 +8,7 @@ WORKDIR = os.path.join(os.getcwd(), "Test")
 
 color = namedtuple('Color', 'r, g, b')
 
-#POI = namedtuple('POI', 'x, y')
+POI = namedtuple('POI', 'x, y')
 
 
 class POI(POI):
@@ -213,23 +213,6 @@ def prepare_callback(cv_image, filename, processor):
             for otherLine in others:
                 otherLine.deactivate()
 
-
-
-            #zone = processor.get_target_zone(x, y)
-            #if zone:
-            #    print(f"Selected zone {zone.get_name()}")
-            #    zone.update_poi(x, y)
-
-            #else:
-            #    print("There is no appropriate zone found")
-
-            #draw_markers(cv_image, processor, filename)
-
-        # if event == cv.EVENT_RBUTTONDOWN:
-            #print(f"Switching point from {event_marker}\
-            #    to {swith_to_next_label(event_marker)}")
-            #event_marker = swith_to_next_label(event_marker)
-
             drawLines(cv_image, processor, filename)
 
     return mouse_event_callback
@@ -261,18 +244,6 @@ for image in images_iterator:
     cached = deepcopy(cv_image)
 
     w, h = cv_image.shape[1], cv_image.shape[0]
-
-    # processor = zones_processor()
-    #processor.register_zone(
-    #    quadrant(0, 0, w / 2, h * 0.25, _color=color(255, 0, 255), name="Q2", prev_focus=relative_focus[0]))
-    #processor.register_zone(
-    #    quadrant(w / 2, 0, w, h * 0.25, _color=color(0, 255, 255), name="Q1", prev_focus=relative_focus[1]))
-    #processor.register_zone(
-    #    quadrant(0, h * 0.25, w / 2, h, _color=color(0, 0, 255), name="Q4", prev_focus=relative_focus[2]))
-    #processor.register_zone(
-    #    quadrant(w / 2, h * 0.25, w, h, _color=color(255, 255, 0), name="Q3", prev_focus=relative_focus[3]))
-
-
 
     processor =  gridProcessor()
     g1 = guideline(POI(100,   0), POI(100, 1500) )
