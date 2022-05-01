@@ -3,6 +3,7 @@ import csv
 import cv2 as cv
 import numpy as np
 import os
+from scipy import linalg
 
 
 class POI():
@@ -61,8 +62,8 @@ def default_parser(data):
     return filename, meta_perspective(p1, p2, p3, p4)
 
 
-def file_reader(filepath):
-    with open(filepath) as images_perspective_log:
+def file_reader(image_path):
+    with open(image_path) as images_perspective_log:
         reader = csv.reader(images_perspective_log)
         for line in reader:
             yield line
@@ -77,56 +78,99 @@ class meta_image():
         self.h = None
         self.w = None
         self.homographyMatrix = None
+        self.homographyMatrixReversed = None
         self.homographyMatrixInverted = None
+        self.homographyMatrixReversedInverted = None
 
     def __repr__(self):
         return f"{self.image_path}: {self.perspective}"
 
-    def calculate_perspective_mat(self, target_meta):
+    def _calculate_perspective_mat(self, target_meta):
         H, _ = cv.findHomography(self.perspective.as_array(),
                                  target_meta.as_array())
-        print(f"Homography Matrix are\n{H}")
-        HInv, _ = cv.findHomography(target_meta.as_array(),
+        # print(f"Homography Matrix are\n{H}")
+        HRev, _ = cv.findHomography(target_meta.as_array(),
                                     self.perspective.as_array())
-        print(f"Homography Matrix Inverted are \n{HInv}")
+        # print(f"Homography Matrix Reversed are \n{HRev}")
 
         self.homographyMatrix = H
-        self.homographyMatrixInverted = HInv
+        self.homographyMatrixReversed = HRev
+        self.homographyMatrixInverted = linalg.inv(self.homographyMatrix)
+        self.homographyMatrixReversedInverted = linalg.inv(
+            self.homographyMatrixReversed)
 
-    def read_image_dimentions(self):
+    def _read_image_dimentions(self):
         img = cv.imread(self.image_path)
         print(img.shape)
         self.h, self.w, _ = img.shape
         del img
 
-    def read_image(self):
+    def _read_image(self):
         img = cv.imread(self.image_path)
         return img
 
-    def apply_perspective(self, target_meta, target_shape):
-        img = self.read_image()
-        corrected = cv.warpPerspective(
-            img, self.homographyMatrix, (target_shape[1], target_shape[0]))
-        return corrected
+    def _apply_perspective(self, target_meta, target_shape):
+        image_original = self._read_image()
+        target_shape = target_shape if target_shape is not None else [
+            self.h, self.w]
+        image_corrected = cv.warpPerspective(
+            image_original, self.homographyMatrix, (target_shape[1], target_shape[0]))
+        return image_corrected
+
+    def apply_translation(self, target_meta, target_shape):
+        if self.h is None or self.w is None or self.homographyMatrix is None:
+            self._read_image_dimentions()
+            self._calculate_perspective_mat(target_meta)
+        image_translated = self._apply_perspective(target_meta, target_shape)
+
+        out_image_path = self._get_prefixed_image_path("00_TRANS_")
+
+        self._dump_image(image_translated, out_image_path)
+
+    def _dump_image(self, mat, image_path):
+        cv.imwrite(image_path, mat)
+
+    def _get_prefixed_image_path(self, prefix):
+        base_image_path = os.path.basename(self.image_path)
+        return self.image_path.replace(base_image_path, prefix + base_image_path)
 
     def calculate_corrected_size(self):
         if self.homographyMatrix is None or \
-                self.homographyMatrixInverted is None or \
+                self.homographyMatrixReversed is None or \
                 self.h is None or \
                 self.w is None:
             raise Exception("Image paramters are not defined")
         h_corner = np.asarray([self.h, 0.0, 1.0])
         w_corner = np.asarray([0.0, self.w, 1.0])
 
-        rev_h_meta = np.dot(self.homographyMatrix, h_corner)
-        rev_h_meta_inv = np.dot(self.homographyMatrixInverted, h_corner)
-        rev_w_meta = np.dot(self.homographyMatrix, w_corner)
-        rev_w_meta_inv = np.dot(self.homographyMatrixInverted, w_corner)
-
-        print(f"rev_h_meta = {rev_h_meta}")
-        print(f"rev_h_meta_inv = {rev_h_meta_inv}")
-        print(f"rev_w_meta = {rev_w_meta}")
-        print(f"rev_w_meta_inv = {rev_w_meta_inv}")
+        print("*" * 10 + "\n" + self.image_path)
+        # h, w corners with forward homography matrix applied
+        h_corner_translated = np.dot(h_corner, self.homographyMatrix)
+        w_corner_translated = np.dot(w_corner, self.homographyMatrix)
+        print("Forward homography matrix applied\n")
+        print(h_corner_translated)
+        print(w_corner_translated)
+        # h, w corners with reversed homography matrix applied
+        h_corner_translated = np.dot(h_corner, self.homographyMatrixReversed)
+        w_corner_translated = np.dot(w_corner, self.homographyMatrixReversed)
+        print("Reversed homography matrix applied\n")
+        print(h_corner_translated)
+        print(w_corner_translated)
+        # h, w corners with inverted homography matrix applied
+        h_corner_translated = np.dot(h_corner, self.homographyMatrixInverted)
+        w_corner_translated = np.dot(w_corner, self.homographyMatrixInverted)
+        print("Inverted homography matrix applied\n")
+        print(h_corner_translated)
+        print(w_corner_translated)
+        # h, w corners with reversed inverted homography matrix applied
+        h_corner_translated = np.dot(
+            h_corner, self.homographyMatrixReversedInverted)
+        w_corner_translated = np.dot(
+            w_corner, self.homographyMatrixReversedInverted)
+        print("Reversed and inverted homography matrix applied\n")
+        print(h_corner_translated)
+        print(w_corner_translated)
+        print("*" * 10)
 
 
 def average_perspective(meta_perspectives):
@@ -147,12 +191,11 @@ LAST_ADDED = -1
 for line in reader:
     meta_images.append(meta_image(line, default_parser))
     print(meta_images[LAST_ADDED])
-    meta_images[LAST_ADDED].read_image_dimentions()
+    meta_images[LAST_ADDED]._read_image_dimentions()
     print(meta_images[LAST_ADDED].h)
     print(meta_images[LAST_ADDED].w)
 
 central_meta = average_perspective([_.perspective for _ in meta_images])
 
 for meta_image in meta_images:
-    meta_image.calculate_perspective_mat(central_meta)
-    meta_image.calculate_corrected_size()
+    meta_image.apply_translation(central_meta, None)
