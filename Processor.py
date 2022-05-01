@@ -50,7 +50,7 @@ class meta_perspective():
                                 self.p4.divide(divider))
 
     def as_array(self):
-        return np.asarray([self.p1(), self.p2(), self.p3(), self.p1()])
+        return np.asarray([self.p1(), self.p2(), self.p3(), self.p4()])
 
 
 def default_parser(data):
@@ -101,7 +101,7 @@ class meta_image():
 
     def _read_image_dimentions(self):
         img = cv.imread(self.image_path)
-        print(img.shape)
+        # print(img.shape)
         self.h, self.w, _ = img.shape
         del img
 
@@ -133,6 +133,25 @@ class meta_image():
     def _get_prefixed_image_path(self, prefix):
         base_image_path = os.path.basename(self.image_path)
         return self.image_path.replace(base_image_path, prefix + base_image_path)
+
+
+    def perspective_warp(image, transform):
+        h, w = image.shape[:2]
+        corners_bef = np.float32([[0, 0], [w, 0], [w, h], [0, h]]).reshape(-1, 1, 2)
+        corners_aft = cv2.perspectiveTransform(corners_bef, transform)
+        xmin = math.floor(corners_aft[:, 0, 0].min())
+        ymin = math.floor(corners_aft[:, 0, 1].min())
+        xmax = math.ceil(corners_aft[:, 0, 0].max())
+        ymax = math.ceil(corners_aft[:, 0, 1].max())
+        x_adj = math.floor(xmin - corners_aft[0, 0, 0])
+        y_adj = math.floor(ymin - corners_aft[0, 0, 1])
+        translate = np.eye(3)
+        translate[0, 2] = -xmin
+        translate[1, 2] = -ymin
+        corrected_transform = np.matmul(translate, transform)
+        return cv2.warpPerspective(image, corrected_transform, (math.ceil(xmax - xmin), math.ceil(ymax - ymin))), x_adj, y_adj
+
+
 
     def calculate_corrected_size(self):
         if self.homographyMatrix is None or \
@@ -192,10 +211,13 @@ for line in reader:
     meta_images.append(meta_image(line, default_parser))
     print(meta_images[LAST_ADDED])
     meta_images[LAST_ADDED]._read_image_dimentions()
-    print(meta_images[LAST_ADDED].h)
-    print(meta_images[LAST_ADDED].w)
+    # print(meta_images[LAST_ADDED].h)
+    # print(meta_images[LAST_ADDED].w)
 
 central_meta = average_perspective([_.perspective for _ in meta_images])
+print(central_meta)
 
 for meta_image in meta_images:
-    meta_image.apply_translation(central_meta, None)
+    #meta_image.apply_translation(central_meta, None)
+    meta_image._calculate_perspective_mat(central_meta)
+    meta_image.calculate_corrected_size()
