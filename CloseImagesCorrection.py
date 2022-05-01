@@ -8,7 +8,7 @@ WORKDIR = os.path.join(os.getcwd(), "Test")
 
 color = namedtuple('Color', 'r, g, b')
 
-POI = namedtuple('POI', 'x, y')
+#POI = namedtuple('POI', 'x, y')
 
 
 class POI(POI):
@@ -17,96 +17,37 @@ class POI(POI):
         return f"{self.x},{self.y}"
 
 
-# class quadrant():
-#     def __init__(self, x1, y1, x2, y2, _color=color(255, 255, 255), name="defult quadrant", prev_focus=None):
-#         self.x1 = x1
-#         self.y1 = y1
-#         self.x2 = x2
-#         self.y2 = y2
-#         self._color = _color
-#         self.name = name
-#         if not prev_focus:
-#             self.focal_point = POI(
-#                 (self.x2 + self.x1) / 2, (self.y2 + self.y1) / 2)
-#             self.focal_point_relative = POI(
-#                 self.focal_point.x / self.x2, self.focal_point.y / self.y2)
-#         else:
-#             self.focal_point_relative = prev_focus
-#             self.focal_point = POI((self.x2 - self.x1) * prev_focus.x + self.x1,
-#                                    (self.y2 - self.y1) * prev_focus.y + self.y1)
-
-#     def get_corners_clockwise(self):
-#         x1, x2, x3, x4 = self.x1, self.x2, self.x2, self.x1
-#         y1, y2, y3, y4 = self.y1, self.y1, self.y2, self.y2
-#         tl = [int(x1), int(y1)]
-#         tr = [int(x2), int(y2)]
-#         br = [int(x3), int(y3)]
-#         bl = [int(x4), int(y4)]
-#         return tl, tr, br, bl
-
-#     def get_name(self):
-#         return self.name
-
-#     def get_borders(self):
-#         tl, tr, br, bl = self.get_corners_clockwise()
-#         return [[tl, tr], [tr, br], [br, bl], [bl, tl]]
-
-#     def are_coords_inside(self, p):
-#         x, y = p
-#         xl, xh = min(self.x1, self.x2), max(self.x1, self.x2)
-#         yl, yh = min(self.y1, self.y2), max(self.y1, self.y2)
-
-#         if x > xl and x <= xh and y > yl and y <= yh:
-#             return True
-
-#         return False
-
-#     def get_poi(self):
-#         return self.focal_point
-
-#     def update_poi(self, x, y):
-#         self.focal_point = POI(x, y)
-#         self.focal_point_relative = POI(
-#             self.focal_point.x / self.x2, self.focal_point.y / self.y2)
-
-#     def get_poi_relative(self):
-#         return self.focal_point_relative
-
-
-# class zones_processor():
-#     def __init__(self):
-#         self.zones = []
-
-#     def register_zone(self, zone):
-#         self.zones.append(zone)
-
-#     def get_target_zone(self, x, y):
-#         target_zones = [_ for _ in self.zones if _.are_coords_inside((x, y))]
-#         if len(target_zones) != 1:
-#             return None
-#         else:
-#             return target_zones[0]
-
-#     def get_zones_special_points(self):
-#         return [_.get_poi() for _ in self.zones]
-
-#     def get_all_known_zones(self):
-#         return self.zones
 
 class guideline():
     def __init__(self, p1, p2):
         self.p1 = p1
         self.p2 = p2
+        # TODO Unify processing of this parameter
+        self.selectedPoint = None
+        self.color = (0, 0, 255)
 
     def distance(self, x, y):
         # ToDo - unificate method
         dist = lambda x1, y1, x2, y2 : ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
         return min(dist(x, y, self.p1.x, self.p1.y), dist(x, y, self.p2.x, self.p2.y))
 
+    def getColor(self):
+        return self.color
+
     def getClosestPoint(self, x, y):
-        dist = lambda x, y, p : ((x1 - p.x) ** 2 + (y1 - p.y) ** 2) ** 0.5
+        dist = lambda x, y, p : ((x - p.x) ** 2 + (y - p.y) ** 2) ** 0.5
         closestPoint = min([self.p1, self.p2], key = lambda _ : dist(x, y, _))
         return closestPoint
+
+    def updateClosesetPoint(self, x, y):
+        closest = self.getClosestPoint(x, y)
+        closest = POI(x, y)
+
+    def selectPoint(self, point):
+        self.selectedPoint = point
+
+    def getSelected(self):
+        return self.selectedPoint
 
     def findCrossPoint(self, otherGuideline):
         x1, x2, x3, x4 = self.p1.x, self.p2.x, otherGuideline.p1.x, otherGuideline.p2.x
@@ -138,6 +79,17 @@ class guideline():
         baseVec[1] = baseVec[1]/baseVecL*dist
 
         return POI(self.p1.x + baseVec[0], self.p1.y + baseVec[1])
+
+    def isActivated(self):
+        return not self.selectedPoint is None
+
+    def activate(self):
+        print("guideline was activated")
+        self.color = (255, 0, 255)
+
+    def deactivate(self):
+        self.color = (0, 0, 255)
+        self.selectedPoint = None
 
 
 
@@ -211,9 +163,15 @@ def drawLines(cv_image, processor, filename):
         
 
         firstPoint = guideline.p1
-
+ 
         cv.line(cv_image, (int(firstPoint.x), int(firstPoint.y)),
-                (int(farPoint.x), int(farPoint.y)), (0, 0, 255) , 2)
+                (int(farPoint.x), int(farPoint.y)), guideline.getColor() , 2)
+
+        if (guideline.isActivated()):
+            sp = guideline.getSelected()
+            cv.circle(cv_image, (int(sp.x), int(sp.y)), 3, (255, 255, 0), 2)
+
+
 
         p1, p2 = guideline.p1, guideline.p2
 
@@ -231,20 +189,6 @@ def drawLines(cv_image, processor, filename):
                 continue
             cv.circle(cv_image, (int(inters.x), int(inters.y)), 3, (0, 255, 0), 2)
 
-
-
-    # for zone in processor.get_all_known_zones():
-    #     borders = zone.get_borders()
-    #     for border in borders:
-    #         cv.line(cv_image, border[0], border[1], zone._color, 5)
-
-    #     poi = zone.get_poi()
-    #     cv.circle(cv_image, (int(poi.x), int(poi.y)), 3, zone._color, 2)
-    #     cv.line(cv_image, (int(poi.x), 0),
-    #             (int(poi.x), cv_image.shape[0]), zone._color, 2)
-    #     cv.line(cv_image, (0, int(poi.y)),
-    #             (cv_image.shape[1], int(poi.y)), zone._color, 2)
-
     cv.imshow(filename, cv_image)
 
 
@@ -255,6 +199,22 @@ def prepare_callback(cv_image, filename, processor):
 
         if event == cv.EVENT_MBUTTONDOWN:
             print("Selected coords ", x, y)
+
+            #targetGuideline = min(processor.getGuidelines(), key = lambda _ : _.distance(x,y))
+
+            targetGuideline, *others = sorted(processor.getGuidelines(), key = lambda _ : _.distance(x,y))
+
+            targetGuideline.activate()
+
+            #
+            closestPoint = targetGuideline.updateClosesetPoint(x,y)
+            #targetGuideline.updateClosest()
+
+            for otherLine in others:
+                otherLine.deactivate()
+
+
+
             #zone = processor.get_target_zone(x, y)
             #if zone:
             #    print(f"Selected zone {zone.get_name()}")
@@ -265,10 +225,12 @@ def prepare_callback(cv_image, filename, processor):
 
             #draw_markers(cv_image, processor, filename)
 
-        if event == cv.EVENT_RBUTTONDOWN:
+        # if event == cv.EVENT_RBUTTONDOWN:
             #print(f"Switching point from {event_marker}\
             #    to {swith_to_next_label(event_marker)}")
             #event_marker = swith_to_next_label(event_marker)
+
+            drawLines(cv_image, processor, filename)
 
     return mouse_event_callback
 
@@ -310,17 +272,20 @@ for image in images_iterator:
     #processor.register_zone(
     #    quadrant(w / 2, h * 0.25, w, h, _color=color(255, 255, 0), name="Q3", prev_focus=relative_focus[3]))
 
-    #callback = prepare_callback(cv_image, image, processor)
+
 
     processor =  gridProcessor()
-    g1 = guideline(POI(100,   0), POI(100, 300) )
-    g2 = guideline(POI(1000,  0), POI(1000, 300))
-    g3 = guideline(POI(0,   100), POI(300, 100) )
-    g4 = guideline(POI(0,  1000), POI(300, 1000))
+    g1 = guideline(POI(100,   0), POI(100, 1500) )
+    g2 = guideline(POI(1000,  0), POI(1000, 1500))
+    g3 = guideline(POI(0,   100), POI(1500, 100) )
+    g4 = guideline(POI(0,  1000), POI(1500, 1000))
     processor.registerGuideline(g1)
     processor.registerGuideline(g2)
     processor.registerGuideline(g3)
     processor.registerGuideline(g4)
+
+
+    callback = prepare_callback(cv_image, image, processor)
 
     screen_res = 1920, 1080
     scale_width = screen_res[0] * 0.8 / cv_image.shape[1]
@@ -335,7 +300,7 @@ for image in images_iterator:
 
     drawLines(cv_image, processor, image)
 
-    #cv.setMouseCallback(image, callback)
+    cv.setMouseCallback(image, callback)
 
     cv.waitKey(0)
 
