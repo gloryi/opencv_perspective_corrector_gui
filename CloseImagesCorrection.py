@@ -1,112 +1,12 @@
-import cv2 as cv
 import os
-import pathlib
+import cv2 as cv
 from copy import deepcopy
-from collections import namedtuple
 
-WORKDIR = os.path.join(os.getcwd(), "Test")
+from Utils import color, POI, iterate_images
+from Config import *
+from Guideline import Guideline
+from GridProcessor import GridProcessor
 
-color = namedtuple('Color', 'r, g, b')
-
-POI = namedtuple('POI', 'x, y')
-
-
-class POI(POI):
-
-    def __repr__(self):
-        return f"{self.x},{self.y}"
-
-
-
-class guideline():
-    def __init__(self, p1, p2):
-        self.p1 = p1
-        self.p2 = p2
-        # TODO Unify processing of this parameter
-        self.selectedPoint = None
-        self.color = (0, 0, 255)
-
-    def distance(self, x, y):
-        # ToDo - unificate method
-        dist = lambda x1, y1, x2, y2 : ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
-        return min(dist(x, y, self.p1.x, self.p1.y), dist(x, y, self.p2.x, self.p2.y))
-
-    def getColor(self):
-        return self.color
-
-    def getClosestPoint(self, x, y):
-        dist = lambda x, y, p : ((x - p.x) ** 2 + (y - p.y) ** 2) ** 0.5
-        closestPoint = min([self.p1, self.p2], key = lambda _ : dist(x, y, _))
-        return closestPoint
-
-    def updateClosesetPoint(self, x, y):
-        closest = self.getClosestPoint(x, y)
-        closest = POI(x, y)
-
-    def selectPoint(self, point):
-        self.selectedPoint = point
-
-    def getSelected(self):
-        return self.selectedPoint
-
-    def findCrossPoint(self, otherGuideline):
-        x1, x2, x3, x4 = self.p1.x, self.p2.x, otherGuideline.p1.x, otherGuideline.p2.x
-        y1, y2, y3, y4 = self.p1.y, self.p2.y, otherGuideline.p1.y, otherGuideline.p2.y
-
-        x1y2 = x1*y2
-        y1x2 = y1*x2
-
-        x3y4 = x3*y4
-        y3x4 = y3*x4
-
-        D = (x1 - x2)*(y3 - y4) - (y1-y2)*(x3 - x4)
-
-        if D == 0:
-            return None
-
-        Cx = (x1y2 - y1x2)*(x3 - x4) - (x1 - x2)*(x3y4 - y3x4)
-        Cx /= D
-
-        Cy = (x1y2 - y1x2)*(y3 - y4) - (y1 - y2)*(x3y4 - y3x4)
-        Cy /= D
-
-        return POI(Cx, Cy)
-
-    def getPointOfDist(self, dist):
-        baseVec = [self.p2.x - self.p1.x, self.p2.y - self.p1.y]
-        baseVecL = (baseVec[0]**2 + baseVec[1]**2)**0.5
-        baseVec[0] = baseVec[0]/baseVecL*dist
-        baseVec[1] = baseVec[1]/baseVecL*dist
-
-        return POI(self.p1.x + baseVec[0], self.p1.y + baseVec[1])
-
-    def isActivated(self):
-        return not self.selectedPoint is None
-
-    def activate(self):
-        print("guideline was activated")
-        self.color = (255, 0, 255)
-
-    def deactivate(self):
-        self.color = (0, 0, 255)
-        self.selectedPoint = None
-
-
-
-
-class gridProcessor():
-    def __init__(self):
-        self.guidelines = []
-
-    def registerGuideline(self, guideline):
-        self.guidelines.append(guideline)
-
-    def getClosestGuideline(self, x, y):
-        targetGuideline = min(self.guidelines, key = lambda gl: gl.distance(x,y) )
-        return targetGuideline
-
-    def getGuidelines(self):
-        return self.guidelines
 
 
 # process mouse event on image
@@ -118,9 +18,9 @@ def prepare_registrator(correction_points_path):
         if close:
             correction_log.close()
         else:
-            print(",".join([str(_) for _ in [img_name, *processor.get_zones_special_points()]]))
+            print(",".join([str(_) for _ in [img_name, *processor.getCrossPoints()]]))
             correction_log.write(",".join(
-                [str(_) for _ in [img_name, *processor.get_zones_special_points()]]) + "\n")
+                [str(_) for _ in [img_name, *processor.getCrossPoints()]]) + "\n")
     return register_points
 
 
@@ -158,25 +58,25 @@ def drawLines(cv_image, processor, filename):
     for guideline in processor.getGuidelines():
 
         #w, h = cv_image.shape[1], cv_image.shape[0]
-        farPoint = guideline.getPointOfDist(4000)
-        #farPoint = POI(min(w, farPoint.x), min(h, farPoint.y))
+        farPoint1 = guideline.getPointOfDist(4000)
+        farPoint2 = guideline.getPointOfDist(-4000)
         
 
-        firstPoint = guideline.p1
+        #firstPoint = guideline.p1
  
-        cv.line(cv_image, (int(firstPoint.x), int(firstPoint.y)),
-                (int(farPoint.x), int(farPoint.y)), guideline.getColor() , 2)
+        cv.line(cv_image, (int(farPoint1.x), int(farPoint1.y)),
+                (int(farPoint2.x), int(farPoint2.y)), guideline.getColor() , 2)
 
         if (guideline.isActivated()):
             sp = guideline.getSelected()
-            cv.circle(cv_image, (int(sp.x), int(sp.y)), 3, (255, 255, 0), 2)
+            cv.circle(cv_image, (int(sp.x), int(sp.y)), 3, (255, 255, 0), 3)
 
 
 
         p1, p2 = guideline.p1, guideline.p2
 
-        cv.circle(cv_image, (int(p1.x), int(p1.y)), 3, (255, 0, 0), 2)
-        cv.circle(cv_image, (int(p2.x), int(p2.y)), 3, (255, 0, 0), 2)
+        cv.circle(cv_image, (int(p1.x), int(p1.y)), 300, (255, 0, 0), 7)
+        cv.circle(cv_image, (int(p2.x), int(p2.y)), 300, (255, 0, 0), 7)
 
 
 
@@ -187,7 +87,7 @@ def drawLines(cv_image, processor, filename):
             inters = g1.findCrossPoint(g2)
             if inters is None:
                 continue
-            cv.circle(cv_image, (int(inters.x), int(inters.y)), 3, (0, 255, 0), 2)
+            cv.circle(cv_image, (int(inters.x), int(inters.y)), 3, (0, 255, 0), 3)
 
     cv.imshow(filename, cv_image)
 
@@ -218,18 +118,7 @@ def prepare_callback(cv_image, filename, processor):
     return mouse_event_callback
 
 
-# TODO ADD SKIP OR PROCESSING OF MISSING
-def iterate_images():
-    images_list = []
-    for _r, _d, _f in os.walk(WORKDIR):
-        for f in _f:
-            # print(f)
-            if pathlib.Path(f).suffix == ".jpg":
-                images_list.append(os.path.join(_r, f))
-    # print(images_list)
-    for image in images_list:
-        yield image
-        # break
+
 
 
 registrator_func = prepare_registrator(
@@ -245,11 +134,11 @@ for image in images_iterator:
 
     w, h = cv_image.shape[1], cv_image.shape[0]
 
-    processor =  gridProcessor()
-    g1 = guideline(POI(100,   0), POI(100, 1500) )
-    g2 = guideline(POI(1000,  0), POI(1000, 1500))
-    g3 = guideline(POI(0,   100), POI(1500, 100) )
-    g4 = guideline(POI(0,  1000), POI(1500, 1000))
+    processor =  GridProcessor()
+    g1 = Guideline(POI(100,   0), POI(100, 1500) )
+    g2 = Guideline(POI(1000,  0), POI(1000, 1500))
+    g3 = Guideline(POI(0,   100), POI(1500, 100) )
+    g4 = Guideline(POI(0,  1000), POI(1500, 1000))
     processor.registerGuideline(g1)
     processor.registerGuideline(g2)
     processor.registerGuideline(g3)
@@ -277,7 +166,7 @@ for image in images_iterator:
 
     registrator_func(image, processor)
 
-    relative_focus = [_.get_poi_relative() for _ in processor.get_all_known_zones()]
+    #relative_focus = [_.get_poi_relative() for _ in processor.get_all_known_zones()]
 
     cv.destroyAllWindows()
 
