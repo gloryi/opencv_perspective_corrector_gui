@@ -2,6 +2,7 @@ from collections import namedtuple
 import csv
 import cv2 as cv
 import numpy as np
+import os
 
 
 class POI():
@@ -113,11 +114,11 @@ def average_perspective(meta_perspectives):
     return total_meta.divide(len(meta_perspectives))
 
 
-test_path = "/mnt/X/WORKSHOP/Scripts/FMNS_processing/opencv_perspective_corrector_gui/Test/correction_log.log"
+test_files_directory = os.path.join(os.getcwd(),"Test/correction_log.log")
 
 meta_images = []
 
-reader = file_reader(test_path)
+reader = file_reader(test_files_directory)
 for line in reader:
     meta_images.append(meta_image(line, default_parser))
     print(meta_images[-1])
