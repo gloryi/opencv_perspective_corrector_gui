@@ -135,10 +135,10 @@ for image in images_iterator:
     w, h = cv_image.shape[1], cv_image.shape[0]
 
     processor =  GridProcessor()
-    g1 = Guideline(POI(100,   0), POI(100, 1500) )
-    g2 = Guideline(POI(1000,  0), POI(1000, 1500))
-    g3 = Guideline(POI(0,   100), POI(1500, 100) )
-    g4 = Guideline(POI(0,  1000), POI(1500, 1000))
+    g1 = Guideline(POI(100,   0), POI(100, 1500), clapToTop   = True)
+    g2 = Guideline(POI(1000,  0), POI(1000, 1500), clapToTop  = True)
+    g3 = Guideline(POI(0,   100), POI(1500, 100) , clapToLeft = True)
+    g4 = Guideline(POI(0,  1000), POI(1500, 1000), clapToLeft = True)
     processor.registerGuideline(g1)
     processor.registerGuideline(g2)
     processor.registerGuideline(g3)

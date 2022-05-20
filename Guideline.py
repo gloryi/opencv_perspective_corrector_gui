@@ -1,9 +1,37 @@
 from Utils import POI
 
+# class frozenPOI(POI):
+    
+#     def __init__(self, *args, **kwards):
+#         self.xFreezed = False
+#         self.yFreezed = False
+#         super().__init__(args, kwards)
+
+#     def freezeX():
+#         self.xFreezed = True
+
+#     def freezeY():
+#         self.yFreezed = True
+
+#     def getX():
+#         return self.x if not xFreezed else 0
+
+#     def getY():
+#         return self.y if not yFreezed else 0
+
+class ConstantLines():
+    self.left = Guideline(POI(0,-5000),POI(0,5000))
+    self.top  = Guideline(POI(-5000, 0),POI(5000, 0))
+        
+
 class Guideline():
-    def __init__(self, p1, p2):
+    def __init__(self, p1, p2, clapToLeft = False, clapToTop = False):
         self.p1 = p1
         self.p2 = p2
+
+        self.clapToTop = clapToTop
+        self.clapToLeft  = clapToLeft
+
         # TODO Unify processing of this parameter
         self.selectedPoint = None
         self.color = (0, 0, 255)
@@ -23,10 +51,25 @@ class Guideline():
         closePoint, farPint = min(poses, key = applyDist), max(poses, key=applyDist)
         return closePoint, farPint
 
+    def clapShiftedPosition(self, referenceGuideline):
+        guidelineCrossPoint = self.findCrossPoint(referenceGuideline)
+        close, far = self.getClosestPoint(guidelineCrossPoint.x, guidelineCrossPoint.y)
+        self.p1 = far
+        self.p2 = POI(x, y)
+
+
     def updateClosesetPoint(self, x, y):
         close, far = self.getClosestPoint(x, y)
         self.p1 = far
         self.p2 = POI(x, y)
+
+        if self.clapToLeft or self.clapToTop:
+            if self.clapToLeft:
+                self.clapShiftedPosition(ConstantLines.left)
+            else:
+                self.clapShiftedPosition(ConstantLines.top)
+
+
 
     def selectPoint(self, point):
         self.selectedPoint = point
