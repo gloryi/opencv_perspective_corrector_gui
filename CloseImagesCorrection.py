@@ -55,7 +55,7 @@ def drawLines(cv_image, processor, filename):
 
     cv_image = deepcopy(cached)
 
-    for guideline in processor.getGuidelines():
+    for color_switch, guideline in enumerate(processor.getGuidelines()):
 
         #w, h = cv_image.shape[1], cv_image.shape[0]
         farPoint1 = guideline.getPointOfDist(4000)
@@ -75,8 +75,10 @@ def drawLines(cv_image, processor, filename):
 
         p1, p2 = guideline.p1, guideline.p2
 
-        cv.circle(cv_image, (int(p1.x), int(p1.y)), 300, (255, 0, 0), 7)
-        cv.circle(cv_image, (int(p2.x), int(p2.y)), 300, (255, 0, 0), 7)
+        switchColor = lambda switch,target: 255 if switch%2 == target else 0
+
+        cv.circle(cv_image, (int(p1.x), int(p1.y)), 500, (switchColor(color_switch,0), switchColor(color_switch,1), switchColor(color_switch,0)), 3)
+        cv.circle(cv_image, (int(p2.x), int(p2.y)), 500, (switchColor(color_switch,0), switchColor(color_switch,1), switchColor(color_switch,0)), 3)
 
 
 
@@ -128,21 +130,24 @@ images_iterator = iterate_images()
 
 relative_focus = [None]*4
 
+
+processor =  GridProcessor()
+g1 = Guideline(POI(50,   0), POI(50, 1500), clapToTop   = True)
+g2 = Guideline(POI(2000,  0), POI(2000, 1500), clapToTop  = True)
+g3 = Guideline(POI(0,   50), POI(1500, 50) , clapToLeft = True)
+g4 = Guideline(POI(0,  2000), POI(1500, 2000), clapToLeft = True)
+processor.registerGuideline(g1)
+processor.registerGuideline(g2)
+processor.registerGuideline(g3)
+processor.registerGuideline(g4)
+
+
+
 for image in images_iterator:
     cv_image = cv.imread(image)
     cached = deepcopy(cv_image)
 
     w, h = cv_image.shape[1], cv_image.shape[0]
-
-    processor =  GridProcessor()
-    g1 = Guideline(POI(100,   0), POI(100, 1500), clapToTop   = True)
-    g2 = Guideline(POI(1000,  0), POI(1000, 1500), clapToTop  = True)
-    g3 = Guideline(POI(0,   100), POI(1500, 100) , clapToLeft = True)
-    g4 = Guideline(POI(0,  1000), POI(1500, 1000), clapToLeft = True)
-    processor.registerGuideline(g1)
-    processor.registerGuideline(g2)
-    processor.registerGuideline(g3)
-    processor.registerGuideline(g4)
 
 
     callback = prepare_callback(cv_image, image, processor)
@@ -154,6 +159,8 @@ for image in images_iterator:
 
     window_width = int(cv_image.shape[1] * scale)
     window_height = int(h * scale)
+
+    processor.xBorder, processor.yBorder = w, h
 
     cv.namedWindow(image, cv.WINDOW_NORMAL)
     cv.resizeWindow(image, window_width, window_height)

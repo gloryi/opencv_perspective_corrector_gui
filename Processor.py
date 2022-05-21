@@ -4,6 +4,7 @@ import cv2 as cv
 import numpy as np
 import os
 from scipy import linalg
+from Config import WORKDIR
 
 
 class POI():
@@ -199,7 +200,7 @@ def average_perspective(meta_perspectives):
     return total_meta.divide(len(meta_perspectives))
 
 
-test_files_directory = os.path.join(os.getcwd(), "Test/correction_log.log")
+test_files_directory = os.path.join(os.getcwd(), f"{WORKDIR}","correction_log.log")
 
 meta_images = []
 
@@ -218,6 +219,6 @@ central_meta = average_perspective([_.perspective for _ in meta_images])
 print(central_meta)
 
 for meta_image in meta_images:
-    #meta_image.apply_translation(central_meta, None)
-    meta_image._calculate_perspective_mat(central_meta)
-    meta_image.calculate_corrected_size()
+    meta_image.apply_translation(central_meta, None)
+    #meta_image._calculate_perspective_mat(central_meta)
+    #meta_image.calculate_corrected_size()

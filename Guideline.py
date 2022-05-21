@@ -19,9 +19,6 @@ from Utils import POI
 #     def getY():
 #         return self.y if not yFreezed else 0
 
-class ConstantLines():
-    self.left = Guideline(POI(0,-5000),POI(0,5000))
-    self.top  = Guideline(POI(-5000, 0),POI(5000, 0))
         
 
 class Guideline():
@@ -55,7 +52,7 @@ class Guideline():
         guidelineCrossPoint = self.findCrossPoint(referenceGuideline)
         close, far = self.getClosestPoint(guidelineCrossPoint.x, guidelineCrossPoint.y)
         self.p1 = far
-        self.p2 = POI(x, y)
+        self.p2 = POI(guidelineCrossPoint.x, guidelineCrossPoint.y)
 
 
     def updateClosesetPoint(self, x, y):
@@ -65,9 +62,10 @@ class Guideline():
 
         if self.clapToLeft or self.clapToTop:
             if self.clapToLeft:
-                self.clapShiftedPosition(ConstantLines.left)
+
+                self.clapShiftedPosition(Guideline(POI(0,-5000),POI(0,5000)))
             else:
-                self.clapShiftedPosition(ConstantLines.top)
+                self.clapShiftedPosition(Guideline(POI(-5000, 0),POI(5000, 0)))
 
 
 
